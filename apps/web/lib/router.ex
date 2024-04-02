@@ -3,16 +3,16 @@ defmodule Web.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug :authorize
   end
 
   scope "/api", Web do
     pipe_through :api
 
-    scope "/sessions" do
-      get "/:id", Controllers.Session, :get
-
-      post "/join", Controllers.Session, :join
-      post "/", Controllers.Session, :create
+    resources "/sessions", Controllers.Session, only: [:show, :create] do
+      resources "/votes", Controllers.Vote, only: [:create]
+      resources "/users", Controllers.User, only: [:create, :update]
+      resources "/task", Controllers.Task, only: [:create, :update], singleton: true
     end
   end
 
@@ -29,6 +29,43 @@ defmodule Web.Router do
       pipe_through [:fetch_session, :protect_from_forgery]
 
       live_dashboard "/dashboard", metrics: Web.Telemetry
+    end
+  end
+
+  def authorize(%{path_params: params} = conn, _) do
+    session_id =
+      ["session_id", "id"]
+      |> Enum.map(&Map.get(params, &1))
+      |> Enum.find(&(not is_nil(&1)))
+
+    if is_nil(session_id) do
+      conn
+    else
+      case Core.Session.Service.get(session_id) do
+        {:ok, session} ->
+          "Bearer " <> user_id = conn |> get_req_header("authorization") |> Enum.at(0)
+
+          case session do
+            %{admin: ^user_id} ->
+              conn
+              |> assign(:user, user_id)
+              |> assign(:membership, :admin)
+
+            %{users: %{^user_id => _}} ->
+              conn
+              |> assign(:user, user_id)
+              |> assign(:membership, :member)
+
+            _ ->
+              conn
+              |> put_status(:unauthorized)
+              |> json(%{error: "unauthorized!"})
+              |> halt()
+          end
+
+        _ ->
+          conn
+      end
     end
   end
 end
