@@ -1,5 +1,6 @@
 .PHONY: help
 
+ORG_NAME ?= kreativeit
 APP_NAME ?= planning_poker
 APP_VSN ?= `grep 'version:' mix.exs | cut -d '"' -f2`
 BUILD ?= `git rev-parse --short HEAD`
@@ -11,8 +12,15 @@ help:
 build: ## Build the Docker image
 	docker build --build-arg APP_NAME=$(APP_NAME) \
 		--build-arg APP_VSN=$(APP_VSN) \
-		-t $(APP_NAME):$(APP_VSN)-$(BUILD) \
-		-t $(APP_NAME):latest .
+		-t ghcr.io/$(ORG_NAME)/$(APP_NAME):$(APP_VSN)-$(BUILD) \
+		-t ghcr.io/$(ORG_NAME)/$(APP_NAME):latest .
+
+push: build ## Push the Docker image
+	docker push ghcr.io/$(ORG_NAME)/$(APP_NAME):$(APP_VSN)-$(BUILD)
+	docker push ghcr.io/$(ORG_NAME)/$(APP_NAME):latest
+
+test: build ## Run the tests
+	docker run ghcr.io/$(ORG_NAME)/$(APP_NAME):$(APP_VSN)-$(BUILD)
 
 run: ## Run the app in Docker
 	docker run --env-file config/docker.env \

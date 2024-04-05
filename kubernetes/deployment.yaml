@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: planning-poker
+  namespace: planning-poker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: planning-poker
+  template:
+    metadata:
+      labels:
+        app: planning-poker
+    spec:
+      imagePullSecrets:
+      - name: github-registry
+      containers:
+      - image: ghcr.io/kreativeit/planning_poker:0.1.0-fb680c4
+        name: planning-poker
+        ports:
+        - containerPort: 4000
+        - containerPort: 4001
