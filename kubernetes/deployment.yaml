@@ -17,7 +17,7 @@ spec:
       imagePullSecrets:
         - name: github-registry
       containers:
-        - image: ghcr.io/kreativeit/planning_poker:0.1.0-c956d42
+        - image: ghcr.io/kreativeit/planning_poker:0.1.0-00b3383
           name: planning-poker
           ports:
             - containerPort: 4000

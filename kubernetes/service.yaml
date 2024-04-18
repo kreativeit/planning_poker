@@ -5,9 +5,13 @@ metadata:
   namespace: planning-poker
 spec:
   ports:
-  - port: 80
-    targetPort: 4000
-  - port: 443
-    targetPort: 4001
+    - port: 80
+      targetPort: 4000
+      name: http
+      protocol: TCP
+    - port: 443
+      targetPort: 4001
+      name: https
+      protocol: TCP
   selector:
     app: planning-poker

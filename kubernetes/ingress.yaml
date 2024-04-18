@@ -5,6 +5,7 @@ metadata:
   namespace: planning-poker
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-production
+    kubernetes.io/ingress.class: "nginx"
 spec:
   ingressClassName: nginx
   tls:
@@ -12,12 +13,12 @@ spec:
         - planning.savioserra.dev
       secretName: planning-poker-tls
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: planning-poker
-            port:
-              name: http
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: planning-poker
+                port:
+                  name: http
