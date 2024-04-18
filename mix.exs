@@ -3,13 +3,13 @@ defmodule PlanningPoker.Umbrella.MixProject do
 
   def project do
     [
+      deps: deps(),
       version: "0.1.0",
       apps_path: "apps",
       start_permanent: Mix.env() == :prod,
-      deps: deps(),
       aliases: aliases(),
       releases: [
-        planning_poker: [
+        app: [
           applications: [
             web: :permanent,
             core: :permanent
@@ -20,10 +20,9 @@ defmodule PlanningPoker.Umbrella.MixProject do
   end
 
   defp deps do
-    [
-      {:distillery, "~> 2.0"}
-    ]
+    []
   end
+
 
   defp aliases do
     [
