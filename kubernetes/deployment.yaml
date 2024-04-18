@@ -4,7 +4,7 @@ metadata:
   name: planning-poker
   namespace: planning-poker
 spec:
-  replicas: 1
+  replicas: 3
   revisionHistoryLimit: 3
   selector:
     matchLabels:
