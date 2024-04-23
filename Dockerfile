@@ -1,7 +1,19 @@
-
+# Find eligible builder and runner images on Docker Hub. We use Ubuntu/Debian
+# instead of Alpine to avoid DNS resolution issues in production.
+#
+# https://hub.docker.com/r/hexpm/elixir/tags?page=1&name=ubuntu
+# https://hub.docker.com/_/ubuntu?tab=tags
+#
+# This file is based on these images:
+#
+#   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
+#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20240408-slim - for the release image
+#   - https://pkgs.org/ - resource for finding needed packages
+#   - Ex: hexpm/elixir:1.15.7-erlang-26.2.4-debian-bullseye-20240408-slim
+#
 ARG ELIXIR_VERSION=1.15.7
-ARG OTP_VERSION=25.3.2.4
-ARG DEBIAN_VERSION=bullseye-20230612-slim
+ARG OTP_VERSION=26.2.4
+ARG DEBIAN_VERSION=bullseye-20240408-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
@@ -42,8 +54,8 @@ RUN mix compile
 
 # Changes to config/runtime.exs don't require recompiling the code
 COPY config/runtime.exs config/
-COPY mix.exs mix.lock ./
 
+COPY rel rel
 RUN mix release
 
 # start a new build stage so that the final image will only contain
@@ -71,5 +83,10 @@ ENV MIX_ENV="prod"
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/app ./
 
 USER nobody
+
+# If using an environment that doesn't automatically reap zombie processes, it is
+# advised to add an init process such as tini via `apt-get install`
+# above and adding an entrypoint. See https://github.com/krallin/tini for details
+# ENTRYPOINT ["/tini", "--"]
 
 CMD ["/app/bin/app", "start"]
