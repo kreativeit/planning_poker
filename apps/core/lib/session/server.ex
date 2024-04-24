@@ -47,6 +47,8 @@ defmodule Core.Session.Server do
       |> Map.update!(:users, &Map.put(&1, admin_id, admin_user))
       |> Map.update!(:current_task, &Map.put(&1, :id, task_id))
 
+    # GenServer.cast(self(), :clean_up)
+
     {:ok, state}
   end
 
@@ -88,13 +90,23 @@ defmodule Core.Session.Server do
       state
       |> update_in([:current_task, :votes, user_id], fn _ -> value end)
 
-    PubSub.broadcast!(@pub_sub, state.id, {:vote, %{user_id => value}})
+    PubSub.broadcast(@pub_sub, state.id, {:vote, %{user_id => value}})
 
     {:reply, next_state, next_state}
   end
 
-  def handle_call(_request, _from, state) do
-    {:reply, state, state}
+  # Swarm
+
+  def handle_call({:swarm, :begin_handoff}, _from, state) do
+    {:reply, {:resume, state}, state}
+  end
+
+  def handle_cast({:swarm, :end_handoff, _}, state) do
+    {:noreply, state}
+  end
+
+  def handle_info({:swarm, :die}, state) do
+    {:stop, :shutdown, state}
   end
 
   # Helpers

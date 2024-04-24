@@ -45,9 +45,9 @@ defmodule Core.Session.Service do
   end
 
   defp lookup(session_id) do
-    case Registry.lookup(Core.Session.Registry, session_id) do
-      [{_, pid}] -> {:ok, pid}
-      _ -> {:error, :not_found}
+    case Swarm.whereis_name(session_id) do
+      pid when is_pid(pid) -> {:ok, pid}
+      :undefined -> {:error, :not_found}
     end
   end
 end

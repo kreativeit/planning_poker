@@ -17,4 +17,7 @@ config :logger, :console,
 
 config :phoenix, :json_library, Jason
 
-import_config "#{config_env()}.exs"
+config :swarm,
+  distribution_strategy: Swarm.Distribution.Ring
+
+import_config("#{config_env()}.exs")

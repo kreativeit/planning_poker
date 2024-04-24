@@ -9,19 +9,21 @@ defmodule Core.Session.Supervisor do
     DynamicSupervisor.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  def start_child(admin_user) do
+  def register([session_id, admin]) do
+    child_spec = {Core.Session.Server, [session_id, admin]}
+    DynamicSupervisor.start_child(__MODULE__, child_spec)
+  end
+
+  def start_child(admin) do
     session_id = UUID.uuid4()
+    child_spec = [session_id, admin]
 
-    child_spec = {
-      Core.Session.Server,
-      [session_id, admin_user]
-    }
+    case Swarm.register_name(session_id, Core.Session.Supervisor, :register, [child_spec]) do
+      {:ok, pid} ->
+        {:ok, pid}
 
-    with {:ok, pid} <- DynamicSupervisor.start_child(__MODULE__, child_spec),
-         {:ok, _} <- Registry.register(Core.Session.Registry, session_id, pid) do
-      {:ok, pid}
-    else
-      _ -> {:error, :failed_to_start_child}
+      {:error, _} ->
+        {:error, :failed_to_start_child}
     end
   end
 end

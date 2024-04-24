@@ -8,7 +8,6 @@ defmodule Core.Application do
     children = [
       {Phoenix.PubSub, name: Core.PubSub},
       {Core.Session.Supervisor, strategy: :one_for_one},
-      {Registry, keys: :unique, name: Core.Session.Registry},
       {Cluster.Supervisor, [topologies, [name: Core.ClusterSupervisor]]}
     ]
 

@@ -38,34 +38,40 @@ defmodule Web.Router do
       |> Enum.map(&Map.get(params, &1))
       |> Enum.find(&(not is_nil(&1)))
 
-    if is_nil(session_id) do
-      conn
-    else
-      case Core.Session.Service.get(session_id) do
-        {:ok, session} ->
-          "Bearer " <> user_id = conn |> get_req_header("authorization") |> Enum.at(0)
+    case conn |> get_req_header("authorization") |> Enum.at(0) do
+      "Bearer " <> user_id when not is_nil(session_id) ->
+        case Core.Session.Service.get(session_id) do
+          {:ok, session} ->
+            case session do
+              %{admin: ^user_id} ->
+                conn
+                |> assign(:user, user_id)
+                |> assign(:membership, :admin)
 
-          case session do
-            %{admin: ^user_id} ->
-              conn
-              |> assign(:user, user_id)
-              |> assign(:membership, :admin)
+              %{users: %{^user_id => _}} ->
+                conn
+                |> assign(:user, user_id)
+                |> assign(:membership, :member)
 
-            %{users: %{^user_id => _}} ->
-              conn
-              |> assign(:user, user_id)
-              |> assign(:membership, :member)
+              _ ->
+                conn
+                |> put_status(:unauthorized)
+                |> json(%{error: "unauthorized!"})
+                |> halt()
+            end
 
-            _ ->
-              conn
-              |> put_status(:unauthorized)
-              |> json(%{error: "unauthorized!"})
-              |> halt()
-          end
+          _ ->
+            conn
+        end
 
-        _ ->
-          conn
-      end
+      nil when not is_nil(session_id) ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{error: "unauthorized!"})
+        |> halt()
+
+      _ ->
+        conn
     end
   end
 end
