@@ -109,6 +109,10 @@ defmodule Core.Session.Server do
     {:noreply, state}
   end
 
+  def handle_cast({:swarm, :resolve_conflict, _delay}, state) do
+    {:noreply, state}
+  end
+
   def handle_info({:swarm, :die}, state) do
     {:stop, :shutdown, state}
   end
