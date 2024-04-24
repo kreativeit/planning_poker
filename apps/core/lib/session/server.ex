@@ -95,6 +95,10 @@ defmodule Core.Session.Server do
     {:reply, next_state, next_state}
   end
 
+  def handle_call(:get, _from, state) do
+    {:reply, state, state}
+  end
+
   # Swarm
 
   def handle_call({:swarm, :begin_handoff}, _from, state) do
