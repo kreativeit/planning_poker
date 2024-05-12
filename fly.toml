@@ -1,18 +1,20 @@
-# fly.toml app configuration file generated for planning-poker-vas6781 on 2024-04-22T20:24:50-03:00
+# fly.toml app configuration file generated for planning-poker-app on 2024-05-11T14:24:19-03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
 app = 'planning-poker-app'
 primary_region = 'gru'
+kill_signal = 'SIGTERM'
+kill_timeout = 30
 
 [build]
   buildpacks = ['https://github.com/HashNuke/heroku-buildpack-elixir']
 
 [env]
   PORT = '4000'
-  RELEASE_COOKIE = "planning-poker"
-  DNS_CLUSTER_QUERY = "planning-poker-app.internal"
+  RELEASE_COOKIE = 'planning-poker'
+  DNS_CLUSTER_QUERY = 'planning-poker-app.internal'
 
 [http_service]
   internal_port = 4000

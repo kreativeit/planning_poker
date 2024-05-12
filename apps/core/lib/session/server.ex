@@ -1,8 +1,8 @@
 defmodule Core.Session.Server do
-  use GenServer
-  alias Phoenix.PubSub
+  use GenServer, restart: :transient
 
-  @pub_sub Core.PubSub
+  @max_session_duration_seconds 60 * 15
+  @heartbeat_interval_miliseconds 15_000
 
   @initial_state %{
     id: "UUID",
@@ -36,6 +36,7 @@ defmodule Core.Session.Server do
 
   # Server
 
+  @impl true
   def init([room_id, admin_user]) do
     task_id = UUID.uuid4()
     admin_id = UUID.uuid4()
@@ -46,8 +47,10 @@ defmodule Core.Session.Server do
       |> Map.put(:admin, admin_id)
       |> Map.update!(:users, &Map.put(&1, admin_id, admin_user))
       |> Map.update!(:current_task, &Map.put(&1, :id, task_id))
+      |> update_at()
 
-    # GenServer.cast(self(), :clean_up)
+    Registry.register(Core.Registry, room_id, self())
+    Process.send_after(self(), :heartbeat, @heartbeat_interval_miliseconds)
 
     {:ok, state}
   end
@@ -56,6 +59,7 @@ defmodule Core.Session.Server do
     GenServer.start_link(__MODULE__, state)
   end
 
+  @impl true
   def handle_call({:update_task, draft}, _from, state) do
     task_properties =
       draft |> cast_task()
@@ -63,6 +67,7 @@ defmodule Core.Session.Server do
     next_state =
       state
       |> Map.update!(:current_task, &Map.merge(&1, task_properties))
+      |> update_at()
 
     {:reply, next_state, next_state}
   end
@@ -81,6 +86,7 @@ defmodule Core.Session.Server do
       state
       |> Map.put(:current_task, task_properties)
       |> Map.update!(:history, fn history -> [curr_task | history] end)
+      |> update_at()
 
     {:reply, next_state, next_state}
   end
@@ -89,32 +95,31 @@ defmodule Core.Session.Server do
     next_state =
       state
       |> update_in([:current_task, :votes, user_id], fn _ -> value end)
-
-    PubSub.broadcast(@pub_sub, state.id, {:vote, %{user_id => value}})
+      |> update_at()
 
     {:reply, next_state, next_state}
   end
 
   def handle_call(:get, _from, state) do
-    {:reply, state, state}
+    next_state = state |> update_at()
+    {:reply, next_state, next_state}
   end
 
-  # Swarm
+  @impl true
+  def handle_info(:heartbeat, state) do
+    id = Map.fetch!(state, :id)
 
-  def handle_call({:swarm, :begin_handoff}, _from, state) do
-    {:reply, {:resume, state}, state}
-  end
+    expiration_date =
+      Map.fetch!(state, :updated_at)
+      |> DateTime.add(@max_session_duration_seconds)
 
-  def handle_cast({:swarm, :end_handoff, _}, state) do
-    {:noreply, state}
-  end
-
-  def handle_cast({:swarm, :resolve_conflict, _delay}, state) do
-    {:noreply, state}
-  end
-
-  def handle_info({:swarm, :die}, state) do
-    {:stop, :shutdown, state}
+    unless DateTime.after?(DateTime.now!("Etc/UTC"), expiration_date) do
+      Process.send_after(self(), :heartbeat, @heartbeat_interval_miliseconds)
+      {:noreply, state}
+    else
+      :logger.info("session #{id} reached max time inactive duration. exiting.")
+      {:stop, :normal, state}
+    end
   end
 
   # Helpers
@@ -123,5 +128,9 @@ defmodule Core.Session.Server do
     draft
     |> Map.filter(fn {key, _} -> key in ["title"] end)
     |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
+  end
+
+  defp update_at(state, value \\ DateTime.now!("Etc/UTC")) do
+    state |> Map.put(:updated_at, value)
   end
 end

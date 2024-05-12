@@ -8,7 +8,7 @@ config :web, Web.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: System.get_env("PORT", "4000")],
   secret_key_base: "A0bWp8RHawJifQ8HPW6lGFxrboa1zil04qPAO4uzNtLu/sfd7Mcg73W0ltdSQ0ny"
 
-config :web, dev_routes: true
+config :web, :dev_routes, true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"

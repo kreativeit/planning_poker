@@ -9,15 +9,13 @@ config :web, Web.Endpoint,
   pubsub_server: Core.PubSub,
   adapter: Bandit.PhoenixAdapter,
   live_view: [signing_salt: "WVoLwdXS"],
-  render_errors: [formats: [json: Web.ErrorJSON], layout: false]
+  render_errors: [formats: [json: Web.ErrorJSON], layout: false],
+  secret_key_base: "12345678901234567890123456789012345678901234567890123456789012345678901234"
 
 config :logger, :console,
   metadata: [:request_id],
   format: "$time $metadata[$level] $message\n"
 
 config :phoenix, :json_library, Jason
-
-config :swarm,
-  distribution_strategy: Swarm.Distribution.Ring
 
 import_config("#{config_env()}.exs")

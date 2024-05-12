@@ -38,8 +38,7 @@ defmodule Core.MixProject do
     [
       {:uuid, "~> 1.1"},
       {:libcluster, "~> 3.3"},
-      {:phoenix_pubsub, "~> 2.1"},
-      {:swarm, "~> 3.4"}
+      {:phoenix_pubsub, "~> 2.1"}
     ]
   end
 

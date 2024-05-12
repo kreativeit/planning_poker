@@ -6,7 +6,9 @@ defmodule Core.Application do
     topologies = Application.get_env(:libcluster, :topologies) || []
 
     children = [
+      Core.Session.Manager,
       {Phoenix.PubSub, name: Core.PubSub},
+      {Registry, keys: :unique, name: Core.Registry},
       {Core.Session.Supervisor, strategy: :one_for_one},
       {Cluster.Supervisor, [topologies, [name: Core.ClusterSupervisor]]}
     ]
