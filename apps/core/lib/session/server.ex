@@ -1,8 +1,8 @@
 defmodule Core.Session.Server do
   use GenServer, restart: :transient
 
-  @max_session_duration_seconds 60 * 15
-  @heartbeat_interval_miliseconds 15_000
+  @max_session_duration_seconds 30
+  @heartbeat_interval_miliseconds 5_000
 
   @initial_state %{
     id: "UUID",
@@ -109,17 +109,30 @@ defmodule Core.Session.Server do
   def handle_info(:heartbeat, state) do
     id = Map.fetch!(state, :id)
 
+    now = DateTime.now!("Etc/UTC")
+
     expiration_date =
       Map.fetch!(state, :updated_at)
       |> DateTime.add(@max_session_duration_seconds)
 
-    unless DateTime.after?(DateTime.now!("Etc/UTC"), expiration_date) do
+    unless DateTime.after?(now, expiration_date) do
+      :logger.debug("[Session #{id}] Hearbeat @ #{now}.")
       Process.send_after(self(), :heartbeat, @heartbeat_interval_miliseconds)
       {:noreply, state}
     else
-      :logger.info("session #{id} reached max time inactive duration. exiting.")
+      :logger.info("[Session #{id}] Reached max time inactive duration. Exiting.")
       {:stop, :normal, state}
     end
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    id = Map.fetch!(state, :id)
+
+    GenServer.abcast(Node.list(), Core.Session.Manager, {:unset, id})
+
+    :logger.info("[Session #{id}] Terminating.")
+    :normal
   end
 
   # Helpers
