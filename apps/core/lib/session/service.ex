@@ -46,7 +46,7 @@ defmodule Core.Session.Service do
 
   defp lookup(session_id) do
     case Core.Session.Manager.lookup(session_id) do
-      {_, pid} when is_pid(pid) -> {:ok, pid}
+      {:ok, pid} when is_pid(pid) -> {:ok, pid}
       _ -> {:error, :not_registered}
     end
   end
