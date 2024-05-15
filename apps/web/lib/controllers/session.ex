@@ -15,8 +15,8 @@ defmodule Web.Controllers.Session do
     end
   end
 
-  def create(%{body_params: %{"user" => user}} = conn, _) do
-    case Core.Session.Service.create(%{name: user}) do
+  def create(%{body_params: %{"user" => admin_username}} = conn, _) do
+    case Core.Session.Service.create(admin_username) do
       {:ok, state} ->
         conn
         |> put_status(:ok)

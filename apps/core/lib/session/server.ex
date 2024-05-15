@@ -1,20 +1,9 @@
 defmodule Core.Session.Server do
+  alias Core.Session.User
+  alias Core.Session.State
+  alias Core.Session.State.Task
+
   use GenServer, restart: :transient
-
-  @max_session_duration_seconds 15 * 60
-  @heartbeat_interval_miliseconds 5_000
-
-  @initial_state %{
-    id: "UUID",
-    admin: "",
-    users: %{},
-    history: [],
-    current_task: %{
-      id: "UUID",
-      title: "",
-      votes: %{}
-    }
-  }
 
   # Client
 
@@ -37,20 +26,17 @@ defmodule Core.Session.Server do
   # Server
 
   @impl true
-  def init([room_id, admin_user]) do
-    task_id = UUID.uuid4()
-    admin_id = UUID.uuid4()
+  def init(admin_user) do
+    admin = User.new!(name: admin_user)
+    task = Task.new!(title: "New Task!")
 
     state =
-      @initial_state
-      |> Map.put(:id, room_id)
-      |> Map.put(:admin, admin_id)
-      |> Map.update!(:users, &Map.put(&1, admin_id, admin_user))
-      |> Map.update!(:current_task, &Map.put(&1, :id, task_id))
-      |> update_at()
+      State.new!()
+      |> State.set_admin_user(admin)
+      |> State.put_task(task)
 
-    Registry.register(Core.Registry, room_id, self())
-    Process.send_after(self(), :heartbeat, @heartbeat_interval_miliseconds)
+    Registry.register(Core.Registry, state.id, self())
+    Process.send_after(self(), :heartbeat, heartbeat_interval())
 
     {:ok, state}
   end
@@ -61,62 +47,52 @@ defmodule Core.Session.Server do
 
   @impl true
   def handle_call({:update_task, draft}, _from, state) do
-    task_properties =
-      draft |> cast_task()
+    task = Task.new!(draft)
 
     next_state =
       state
-      |> Map.update!(:current_task, &Map.merge(&1, task_properties))
-      |> update_at()
+      |> State.merge_current_task(task)
+      |> State.tick()
 
     {:reply, next_state, next_state}
   end
 
   def handle_call({:create_task, draft}, _from, state) do
-    curr_task =
-      state
-      |> Map.get(:current_task)
-
-    task_properties =
-      @initial_state
-      |> Map.get(:current_task)
-      |> Map.merge(draft |> cast_task() |> Map.put(:id, UUID.uuid4()))
+    task = Task.new!(draft)
 
     next_state =
       state
-      |> Map.put(:current_task, task_properties)
-      |> Map.update!(:history, fn history -> [curr_task | history] end)
-      |> update_at()
+      |> State.move_current_task_to_history()
+      |> State.put_task(task)
+      |> State.tick()
 
     {:reply, next_state, next_state}
   end
 
-  def handle_call({:vote, user_id, value}, _from, state) do
+  def handle_call({:vote, user_id, vote}, _from, state) do
     next_state =
       state
-      |> update_in([:current_task, :votes, user_id], fn _ -> value end)
-      |> update_at()
+      |> State.add_vote({user_id, vote})
+      |> State.tick()
 
     {:reply, next_state, next_state}
   end
 
   def handle_call(:get, _from, state) do
-    next_state = state |> update_at()
+    next_state =
+      state
+      |> State.tick()
+
     {:reply, next_state, next_state}
   end
 
   @impl true
   def handle_info(:heartbeat, state) do
     id = Map.fetch!(state, :id)
-    now = DateTime.now!("Etc/UTC")
 
-    expiration_date =
-      Map.fetch!(state, :updated_at)
-      |> DateTime.add(@max_session_duration_seconds)
-
-    unless DateTime.after?(now, expiration_date) do
-      :logger.debug("[Session #{id}] Hearbeat @ #{now}.")
-      Process.send_after(self(), :heartbeat, @heartbeat_interval_miliseconds)
+    unless State.expired?(state) do
+      :logger.debug("[Session #{id}] Hearbeat @ #{DateTime.now!("Etc/UTC")}.")
+      Process.send_after(self(), :heartbeat, heartbeat_interval())
       {:noreply, state}
     else
       :logger.info("[Session #{id}] Reached max time inactive duration. Exiting.")
@@ -132,15 +108,8 @@ defmodule Core.Session.Server do
     :logger.info("[Session #{session_id}] Terminating.")
   end
 
-  # Helpers
-
-  defp cast_task(draft) do
-    draft
-    |> Map.filter(fn {key, _} -> key in ["title"] end)
-    |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
-  end
-
-  defp update_at(state, value \\ DateTime.now!("Etc/UTC")) do
-    state |> Map.put(:updated_at, value)
+  defp heartbeat_interval do
+    Application.fetch_env!(:core, Core.Session.Server)
+    |> Keyword.fetch!(:heartbeat_interval_milliseconds)
   end
 end

@@ -19,3 +19,12 @@ config :phoenix, :plug_init_mode, :runtime
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
+
+config :libcluster,
+  topologies: [
+    local: [strategy: Cluster.Strategy.LocalEpmd]
+  ]
+
+config :core, Core.Session.Server,
+  heartbeat_interval_milliseconds: :timer.seconds(1),
+  max_session_duration_milliseconds: :timer.minutes(1)

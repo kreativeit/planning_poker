@@ -10,9 +10,7 @@ defmodule Core.Session.Supervisor do
   end
 
   def start_child(admin) do
-    session_id = UUID.uuid4()
-
-    case register([session_id, admin]) do
+    case register(admin) do
       {:ok, pid} ->
         {:ok, pid}
 
@@ -21,8 +19,8 @@ defmodule Core.Session.Supervisor do
     end
   end
 
-  defp register([session_id, admin]) do
-    child_spec = {Core.Session.Server, [session_id, admin]}
+  defp register(admin) do
+    child_spec = {Core.Session.Server, admin}
 
     case DynamicSupervisor.start_child(__MODULE__, child_spec) do
       {:ok, pid} ->
